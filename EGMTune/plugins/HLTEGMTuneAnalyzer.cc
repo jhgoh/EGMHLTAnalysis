@@ -81,6 +81,9 @@ private:
   float b_genEle_pt[genEle_N], b_genEle_eta[genEle_N], b_genEle_phi[genEle_N];
   short b_genEle_q[genEle_N];
 
+  // Various internal variables and flags
+  bool isFirstRun_;
+
 };
 
 HLTEGMTuneAnalyzer::HLTEGMTuneAnalyzer(const edm::ParameterSet& pset):
@@ -92,6 +95,7 @@ HLTEGMTuneAnalyzer::HLTEGMTuneAnalyzer(const edm::ParameterSet& pset):
   hltPathNames_(pset.getParameter<std::vector<std::string>>("hltPaths")),
   trigResultsToken_(consumes<edm::TriggerResults>(pset.getParameter<edm::InputTag>("triggerResults")))
 {
+  isFirstRun_ = true;
   processName_ = pset.getParameter<edm::InputTag>("triggerResults").process();
 
   usesResource("TFileService");
@@ -122,6 +126,8 @@ HLTEGMTuneAnalyzer::HLTEGMTuneAnalyzer(const edm::ParameterSet& pset):
 
 void HLTEGMTuneAnalyzer::analyze(const edm::Event& event, const edm::EventSetup& eventSetup)
 {
+  using namespace std;
+
   // Initialize brancies
   b_run = event.id().run();
   b_lumi = event.id().luminosityBlock();
@@ -136,6 +142,13 @@ void HLTEGMTuneAnalyzer::analyze(const edm::Event& event, const edm::EventSetup&
   edm::Handle<edm::TriggerResults> trigResultsHandle;
   event.getByToken(trigResultsToken_, trigResultsHandle);
   const auto trigNames = event.triggerNames(*trigResultsHandle);
+  if ( isFirstRun_ ) {
+    cout << "=================== List of Trigger Paths ===================\n";
+    for ( int i=0, n=trigNames.size(); i<n; ++i ) {
+      cout << trigNames.triggerName(i) << endl;
+    }
+    cout << "=============================================================\n";
+  }
   for ( size_t i=0; i<b_hlt_n; ++i ) {
     size_t pathIndex = trigNames.triggerIndex(hltPathNames_.at(i));
     if ( pathIndex >= trigResultsHandle->size() ) continue;
@@ -146,7 +159,7 @@ void HLTEGMTuneAnalyzer::analyze(const edm::Event& event, const edm::EventSetup&
     // Fill generator level electrons
     edm::Handle<reco::GenParticleCollection> genParticleHandle;
     event.getByToken(genParticleToken_, genParticleHandle);
-    for ( size_t i=0, n=std::min(genParticleHandle->size(), genEle_N); i<n; ++i ) {
+    for ( size_t i=0; i<genEle_N; ++i ) {
       const auto p = genParticleHandle->at(i);
       if ( p.status() != 1 or std::abs(p.pdgId()) != 11 ) continue;
       if ( p.pt() < genEleMinPt_ or std::abs(p.eta()) >= genEleMaxEta_ ) continue;
@@ -156,6 +169,7 @@ void HLTEGMTuneAnalyzer::analyze(const edm::Event& event, const edm::EventSetup&
       b_genEle_phi[b_genEle_n] = p.phi();
       b_genEle_q[b_genEle_n] = p.charge();
       ++b_genEle_n;
+      if ( b_genEle_n >= genEle_N ) break;
     }
   }
 

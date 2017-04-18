@@ -148,6 +148,7 @@ void HLTEGMTuneAnalyzer::analyze(const edm::Event& event, const edm::EventSetup&
       cout << trigNames.triggerName(i) << endl;
     }
     cout << "=============================================================\n";
+    isFirstRun_ = false;
   }
   for ( size_t i=0; i<b_hlt_n; ++i ) {
     size_t pathIndex = trigNames.triggerIndex(hltPathNames_.at(i));
@@ -155,10 +156,10 @@ void HLTEGMTuneAnalyzer::analyze(const edm::Event& event, const edm::EventSetup&
     b_hlt_flags[i] = trigResultsHandle->accept(pathIndex);
   }
 
-  if ( !event.isRealData() ) {
-    // Fill generator level electrons
-    edm::Handle<reco::GenParticleCollection> genParticleHandle;
-    event.getByToken(genParticleToken_, genParticleHandle);
+  // Fill generator level electrons
+  edm::Handle<reco::GenParticleCollection> genParticleHandle;
+  event.getByToken(genParticleToken_, genParticleHandle);
+  if ( genParticleHandle.isValid() ) {
     for ( size_t i=0; i<genEle_N; ++i ) {
       const auto p = genParticleHandle->at(i);
       if ( p.status() != 1 or std::abs(p.pdgId()) != 11 ) continue;
